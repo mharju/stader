@@ -6,7 +6,11 @@ This implementation tries to solve images scanned from the book "1000 Dot-To-Dot
 
 * Add the scanned image to `resources`-directory
 
-    lein run puzzle-image-name.png
+    lein run puzzle-image-name.png >output.csv
+
+# Example solution
+
+![Close but no cigar](http://play.taiste.fi/random/stader.png)
 
 ## License
 

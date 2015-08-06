@@ -99,15 +99,27 @@
 (defn get-digits [puzzle direction pos]
   (for [n (range 3) :let [[x y] (matop/+ pos (offsets direction) [(* 15 n) 0])]]
     (if (and (> x 0) (> y 0) (< (+ x 15) (.getWidth puzzle)) (< (+ y 29) (.getHeight puzzle)))
-        {:digit (get-digit puzzle x y)
-        :image (img/sub-image puzzle x y 15 29)}
+      (let [digit (get-digit puzzle x y)]
+        (if-not (every? #(= 1.0 %) digit)
+            {:digit digit
+            :image (img/sub-image puzzle x y 15 29)}
+            nil))
         nil)))
+
+
+(defn closeness [source target]
+ (mat/distance source target))
+;  (mat/esum
+;      (map-indexed (fn [index value]
+;        (cond (= value (mat/mget source index)) 0.0
+;              (and (= 1.0 value) (not= 1.0 (mat/mget source index))) 2.0
+;            :else 1.0)) target)))
 
 (defn recognize-digit [training-data digit]
   (apply min-key :distance
       (map
          (fn [[data value]] {:digit value
-              :distance (mat/distance digit data)})
+              :distance (closeness digit data)})
         training-data)))
 
 (defn recognize-number [training-data digits]
@@ -124,10 +136,10 @@
 
 (defn variance [direction]
   (direction
-     {:up [[-1 6] [-1 2]]
-      :left [[-2 2] [0 2]]
-      :right [[-2 2] [0 2]]
-      :down [[0 3] [0 3]]}))
+     {:up [[-8 8] [-8 8]]
+      :left [[-8 8] [-8 8]]
+      :right [[-8 8] [-8 8]]
+      :down [[-8 8] [-8 8]]}))
 
 (defn guesses [training-data puzzle pos]
     (flatten
@@ -193,7 +205,7 @@
     (defn check [expected]
         (reduce (fn [acc val] (if (not= (first val) (:number (second val))) (conj acc val) acc))
             []
-            (->> (recognize-numbers puzzle wow)
+            (->> (recognize-numbers puzzle training-data wow)
                   (interleave expected)
                   (partition 2))))
 
@@ -208,13 +220,24 @@
     (def wow (doall (find-dots puzzle)))
     (check [731 711 710 718 719 730 708 709 696 707 712 734 729 727 706 725 726 705 728 713 703 704 732 733 701 722 702 720 721 714 724 735 700 313 698 699 715 723 138 311 312 716 142 139 736 141 697])
 
+    ; part 3
+    (def puzzle (img/load-image-resource "puzzle1-part3.png"))
+    (def wow (doall (find-dots puzzle)))
+    (check [])
+
+    ; part 4
+    (def puzzle (img/load-image-resource "puzzle1-part4.png"))
+    (def wow (doall (find-dots puzzle)))
+    (check [573 607 604 574 614 615 606 665 664 572 616 623 621 622 603 601 620 619 571 618 625 617 661 626 624 613 600 378 660 663 598 646 570 647 597 651 627 594 608 650 576 649 645 612 593 575 561 577 567 568 560 569 611 590 662 551 554 555 550 549 548 589 610 558 552 566 557 556 553 586 563 579 562 559 578 542 565 564 609 395 580 581 391 583 582 394 585 584 399 541 540 400 536 396 488 489 408 629 490 628 403])
+
     ; verification tools & general debugging stuff
-    (img/show (get-image puzzle :down [358 1047]))
-    (img/show (:image (nth (get-digits puzzle :right [471 186]) 2)))
+    (img/show (get-image puzzle :right [656 580]))
+
+    (img/show (:image (nth (get-digits puzzle :left [290 495]) 0)))
     (mat/esum
       (:distance
-        (recognize-number training-data (map :digit (get-digits (filter-puzzle puzzle) :down [358 1047])))))
-    (best-guess training-data (filter-puzzle puzzle) [356 1045])
+        (recognize-number training-data (map :digit (get-digits (filter-puzzle puzzle) :down [555 804])))))
+    (best-guess training-data (filter-puzzle puzzle) [656 585])
 
     (for [{location :location} wow
                     :let [gs-puzzle (filter-puzzle puzzle)
@@ -231,7 +254,7 @@
       (img/set-pixel image x (inc y) 0xffff0000)
       (img/set-pixel image x (dec y) 0xffff0000))
 
-    (let [marked-image (img/load-image-resource "puzzle1-part2.png")]
+    (let [marked-image (img/load-image-resource "puzzle1-part3.png")]
         (doall (for [{location :location} (sort-by :score wow)]
           (mark marked-image location)))
         (img/save marked-image "/tmp/marked.png"))
@@ -329,6 +352,8 @@
     (clojure.pprint/pprint
       (partition 10
         (map (fn [[x y]] (mat/mget perfect-circle x y)) (make-neighborhood [7 7] 5)))))
+
+    (closeness [0.0 0.0 1.0] [0.0 0.0 1.0])
 
     (defn frm-save
        "Save a clojure form to file."
