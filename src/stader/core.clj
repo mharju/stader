@@ -107,27 +107,23 @@
         nil)))
 
 
-(defn closeness [source target]
- (mat/distance source target))
-;  (mat/esum
-;      (map-indexed (fn [index value]
-;        (cond (= value (mat/mget source index)) 0.0
-;              (and (= 1.0 value) (not= 1.0 (mat/mget source index))) 2.0
-;            :else 1.0)) target)))
+(defn closeness [source target] (mat/distance source target))
 
 (defn recognize-digit [training-data digit]
-  (apply min-key :distance
-      (map
-         (fn [[data value]] {:digit value
-              :distance (closeness digit data)})
-        training-data)))
+  (if-not (nil? digit)
+      (let [recognized (apply min-key :distance
+              (map (fn [[data value]] {:digit value
+                      :distance (closeness digit data)})
+                training-data))]
+        (if (< (:distance recognized) 10.0) recognized { :digit 0 :distance nil }))
+      {:digit 0 :distance nil}))
 
 (defn recognize-number [training-data digits]
   (dissoc
       (reduce (fn [{number :number coeff :coeff distance :distance} val]
           {
           :number (+ number (* coeff (:digit val)))
-          :coeff (* coeff 10)
+          :coeff (if-not (nil? (:distance val)) (* coeff 10) coeff)
           :distance (conj distance (:distance val))
           })
           {:number 0 :coeff 1 :distance []}
@@ -147,14 +143,17 @@
         (for [offset-x (apply range (first (variance direction))) offset-y (apply range (second (variance direction)))
            :let [digits (map :digit (get-digits puzzle direction
                              (matop/+ pos [offset-x offset-y])))]
-           :when (not-any? nil? digits)]
+           :when (not-every? nil? digits)]
         (assoc (recognize-number training-data digits)
           :direction direction
           :dot-location pos
           :location (matop/+ pos [offset-x offset-y]))))))
 
 (defn best-guess [training-data puzzle pos]
-  (apply min-key #(mat/esum (:distance %)) (guesses training-data puzzle pos)))
+  (let [guesses (guesses training-data puzzle pos)
+        num-digits (apply max (map #(count (remove nil? (:distance %))) guesses))
+        filtered-guesses (filter #(= num-digits (count (remove nil? (:distance %)))) guesses)]
+  (apply min-key #(mat/esum (remove nil? (:distance %))) filtered-guesses)))
 
 (defn find-dots [puzzle]
   (->> puzzle
@@ -176,6 +175,17 @@
          [[513 663] 4] [[452 217] 5] [[318 615] 6] [[394 547] 7]
          [[416 676] 8] [[386 311] 9] [[319 615] 6] [[387 311] 9]])))
 
+(defn correct-numbers [puzzle numbers]
+  (let [duplicates (for [[number freq] (frequencies (map :number numbers)) :when (> freq 1)] number)]
+    (for [number numbers]
+      (if (some? #(= (:number number) %) duplicates)
+          (do
+             (img/show (get-image puzzle (:direction number) (:location number)))
+             (println "Recognized number " (:number number))
+             (println "Enter correct number: ")
+             (assoc number :number (Integer/parseInt (read-line))))
+      number))))
+
 (defn -main
   [& args]
   (.println *err* "STADER Puzzle solver 1.0")
@@ -189,9 +199,11 @@
     (let [start (System/currentTimeMillis)
           puzzle (img/load-image-resource (first args))
           dots (find-dots puzzle)
-          numbers (recognize-numbers puzzle training-data dots)]
+          numbers (sort-by :number (recognize-numbers puzzle training-data dots))
+          corrected-numbers (correct-numbers puzzle numbers)]
+
         (println "num,x,y")
-        (doseq [{[x y] :dot-location number :number} (sort-by :number numbers)]
+        (doseq [{[x y] :dot-location number :number} corrected-numbers]
             (printf "%d,%d,%d\n" number (int x) (int y)))
         (.println *err* (str "Completed in " (-> (System/currentTimeMillis)
                                                 (- start)
@@ -209,6 +221,12 @@
                   (interleave expected)
                   (partition 2))))
 
+    (def g (guesses training-data (filter-puzzle puzzle) (:location (first wow))))
+    (let [num-digits (apply max (map #(count (remove nil? (:distance %))) g))]
+      num-digits)
+
+    (filter #(= 2 (count (remove nil? (:distance %)) )) g)
+    (filter #(= 31 (:number %)) g)
 
     ; part 1
     (def puzzle (img/load-image-resource "puzzle1-part.png"))
@@ -230,14 +248,19 @@
     (def wow (doall (find-dots puzzle)))
     (check [573 607 604 574 614 615 606 665 664 572 616 623 621 622 603 601 620 619 571 618 625 617 661 626 624 613 600 378 660 663 598 646 570 647 597 651 627 594 608 650 576 649 645 612 593 575 561 577 567 568 560 569 611 590 662 551 554 555 550 549 548 589 610 558 552 566 557 556 553 586 563 579 562 559 578 542 565 564 609 395 580 581 391 583 582 394 585 584 399 541 540 400 536 396 488 489 408 629 490 628 403])
 
-    ; verification tools & general debugging stuff
-    (img/show (get-image puzzle :right [656 580]))
+    (def puzzle (img/load-image-resource "puzzle2-part1.png"))
+    (def wow (doall (find-dots puzzle)))
+    (check [])
 
-    (img/show (:image (nth (get-digits puzzle :left [290 495]) 0)))
+
+    ; verification tools & general debugging stuff
+    (img/show (get-image puzzle :right [70 267]))
+
+    (img/show (:image (nth (get-digits puzzle :right [67 267]) 2)))
     (mat/esum
       (:distance
-        (recognize-number training-data (map :digit (get-digits (filter-puzzle puzzle) :down [555 804])))))
-    (best-guess training-data (filter-puzzle puzzle) [656 585])
+        (recognize-number training-data (map :digit (get-digits (filter-puzzle puzzle) :left [67 267])))))
+    (best-guess training-data (filter-puzzle puzzle) [82 577])
 
     (for [{location :location} wow
                     :let [gs-puzzle (filter-puzzle puzzle)
