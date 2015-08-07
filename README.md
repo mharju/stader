@@ -10,7 +10,7 @@ This implementation tries to solve images scanned from the book "1000 Dot-To-Dot
 
 # Example solution
 
-![Some noise still](http://play.taiste.fi/random/stader.png)
+![So close](http://play.taiste.fi/random/stader.png)
 
 ## License
 

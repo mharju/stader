@@ -178,7 +178,7 @@
 (defn correct-numbers [puzzle numbers]
   (let [duplicates (for [[number freq] (frequencies (map :number numbers)) :when (> freq 1)] number)]
     (for [number numbers]
-      (if (some? #(= (:number number) %) duplicates)
+      (if (some #(= (:number number) %) duplicates)
           (do
              (img/show (get-image puzzle (:direction number) (:location number)))
              (println "Recognized number " (:number number))
@@ -188,28 +188,29 @@
 
 (defn -main
   [& args]
-  (.println *err* "STADER Puzzle solver 1.0")
-  (.println *err* "Locating circles and detecting numbers. This might take a while...")
+  (println "STADER Puzzle solver 1.0")
+  (println "Locating circles and detecting numbers. This might take a while...")
 
-  (if-not (= (count args) 1)
+  (if-not (= (count args) 2)
     (do
-      (.println *err* "usage: lein run [puzzle-resource]")
+      (println "usage: lein run [puzzle-resource] [output-csv]")
       (System/exit -1))
 
     (let [start (System/currentTimeMillis)
           puzzle (img/load-image-resource (first args))
           dots (find-dots puzzle)
           numbers (sort-by :number (recognize-numbers puzzle training-data dots))
-          corrected-numbers (correct-numbers puzzle numbers)]
+          corrected-numbers (sort-by :number (correct-numbers puzzle numbers))]
 
-        (println "num,x,y")
-        (doseq [{[x y] :dot-location number :number} corrected-numbers]
-            (printf "%d,%d,%d\n" number (int x) (int y)))
-        (.println *err* (str "Completed in " (-> (System/currentTimeMillis)
+        (println (str "Completed in " (-> (System/currentTimeMillis)
                                                 (- start)
                                                 (/ 1000.0)) " seconds"))
 
-        (flush)
+        (with-open [w (java.io.FileWriter. (java.io.File. (second args)))]
+            (.write w "num,x,y\n")
+            (doseq [{[x y] :dot-location number :number} corrected-numbers]
+                (.write w (str number "," (int x) "," (int y) "\n"))))
+
         (System/exit 0))))
 
 ; test test test
@@ -248,9 +249,11 @@
     (def wow (doall (find-dots puzzle)))
     (check [573 607 604 574 614 615 606 665 664 572 616 623 621 622 603 601 620 619 571 618 625 617 661 626 624 613 600 378 660 663 598 646 570 647 597 651 627 594 608 650 576 649 645 612 593 575 561 577 567 568 560 569 611 590 662 551 554 555 550 549 548 589 610 558 552 566 557 556 553 586 563 579 562 559 578 542 565 564 609 395 580 581 391 583 582 394 585 584 399 541 540 400 536 396 488 489 408 629 490 628 403])
 
-    (def puzzle (img/load-image-resource "puzzle2-part1.png"))
+    (def puzzle (img/load-image-resource "puzzle1-part5.png"))
     (def wow (doall (find-dots puzzle)))
     (check [])
+
+    (correct-numbers puzzle [{:number 1 :location [100 100] :direction :up} {:number 1 :location [100 100] :direction :up} {:number 20 :location [100 100] :direction :up}])
 
 
     ; verification tools & general debugging stuff
