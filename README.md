@@ -10,7 +10,7 @@ This implementation tries to solve images scanned from the book "1000 Dot-To-Dot
 
 # Example solution
 
-![So close](http://play.taiste.fi/random/stader.png)
+![Solution for a puzzle](http://play.taiste.fi/random/stader.png)
 
 ## License
 
