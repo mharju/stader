@@ -6,7 +6,7 @@ This implementation tries to solve images scanned from the book "1000 Dot-To-Dot
 
 * Add the scanned image to `resources`-directory
 
-    lein run puzzle-image-name.png >output.csv
+    ```lein run puzzle-image-name.png solution.csv```
 
 # Example solution
 
